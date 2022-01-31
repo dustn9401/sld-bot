@@ -1,0 +1,1 @@
+WindowName = '스타크래프트 II'

@@ -5,3 +5,5 @@ Setting = 'N'
 Center = ahk.keys.Key('F1')
 Characteristic = ahk.keys.Key('F4')
 UpgradeZone = 'G'
+Pause = ahk.keys.Key('F10')
+MergeChart = '~'

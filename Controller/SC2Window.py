@@ -31,7 +31,6 @@ class SC2Window:
         self.hwnd = win32gui.FindWindow(None, '스타크래프트 II')
         self.rect = win32gui.GetWindowRect(self.hwnd)
         self.clientRect = win32gui.GetClientRect(self.hwnd)
-        print('rect=', self.rect, 'clientRect=', self.clientRect)
         self.titleBarHeight = self.rect[3] - self.clientRect[3]
 
         self.hwndDC = win32gui.GetWindowDC(self.hwnd)

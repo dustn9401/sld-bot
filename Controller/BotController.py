@@ -8,6 +8,8 @@ import cv2
 import win32gui
 
 from Controller.SC2Window import SC2Window
+from Controller.RunConfiguration import RunConfiguration
+
 import Constant.Constants as Constants
 import Constant.ScreenPositions as pos
 import Constant.Keymaps as KeyMaps
@@ -20,11 +22,6 @@ from Utils.Stopwatch import Stopwatch
 ResultPopup, ReadyPopup, LoadingScreen, SelectEternal, SelectDifficulty, PlayMain \
     = 0, 1, 2, 3, 4, 5
 
-class RunConfiguration:
-    def __init__(self, difficulty, rune_gain_behaviour=0, rune_reinforce_slot_index=0):
-        self.difficulty = difficulty
-        self.rune_gain_behaviour = rune_gain_behaviour
-        self.rune_reinforce_slot_index = rune_reinforce_slot_index
 
 class BotController:
     def __init__(self, sc2win: SC2Window, configuration: RunConfiguration):
@@ -94,14 +91,14 @@ class BotController:
     async def handle_loading_screen(self):
         print('handle_loading_screen')
         btn_bbox = await self.wait_for_bbox(self.img_btn_single)
-        print(f"find single btn: {btn_bbox}")
+        print(f"single btn: {btn_bbox}")
         await send_click_async(self.get_center_pos(btn_bbox))
         await asyncio.sleep(3)
         self.state = SelectEternal
 
     async def handle_select_eternal(self):
         btn_bbox = await self.wait_for_bbox(self.img_btn_eternal)
-        print(f"find eternal btn: {btn_bbox}")
+        print(f"eternal btn: {btn_bbox}")
         await send_click_async(self.get_center_pos(btn_bbox))
         await asyncio.sleep(5)
         self.state = SelectDifficulty
@@ -226,6 +223,7 @@ class BotController:
     async def handle_merge_units(self, session_data, randomizer):
         if session_data.stopwatch.get_elapsed() < randomizer.merge_start_time: return
         if time.time() - session_data.last_merge < randomizer.next_merge_interval: return
+        if session_data.stopwatch.get_elapsed() > randomizer.stop_lottery_time: return
         print(f'merge units: {session_data.stopwatch.get_elapsed()}')
         session_data.on_merge()
         randomizer.on_merge()
@@ -312,7 +310,7 @@ class BotController:
 
     async def handle_upgrade(self, session_data, randomizer):
         elapsed = session_data.stopwatch.get_elapsed()
-        if elapsed > Constants.UpgradeStartTime + randomizer.randint_1_10 and \
+        if elapsed > randomizer.upgrade_start_time and \
                 session_data.upgrade_count < 8 and\
                 time.time() - session_data.last_upgrade > randomizer.next_upgrade_interval:
             print(f'unit upgrade: {elapsed}')
@@ -385,9 +383,10 @@ class Randomizer:
         self.next_upgrade_interval = 0
         self.refresh_random_values()
         self.next_merge_interval = 0
-        self.stop_lottery_time = random.randint(2500, 3000)
+        self.stop_lottery_time = random.randint(2000, 3000)
         self.merge_start_time = random.randint(800, 1500)
-        self.upgrade_start_time = random.randint(250, 350) if self.bool_seed else random.randint(300, 400)
+        self.upgrade_start_time = random.randint(200, 300) if self.bool_seed else random.randint(300, 400)
+        self.exit_manually = random.randint(0, 2) < 2
 
     def on_merge(self):
         self.next_merge_interval = random.randint(100, 200)
@@ -408,8 +407,8 @@ class Randomizer:
     def on_upgrade(self, session_data: SessionData):
         def get_interval():
             elapsed = session_data.stopwatch.get_elapsed()
-            if elapsed < 400: return random.randint(20, 50)
-            if elapsed < 600: return random.randint(50, 90)
+            if elapsed < 400: return random.randint(40, 60) if self.bool_seed else random.randint(30, 50)
+            if elapsed < 600: return random.randint(70, 100) if self.bool_seed else random.randint(50, 70)
             return random.randint(70, 110)
 
         interval = get_interval()

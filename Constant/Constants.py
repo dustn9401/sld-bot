@@ -1,5 +1,5 @@
-Practice, VeryEasy, Easy, Normal, Hard \
-    = 0, 1, 2, 3, 4
+Practice, VeryEasy, Easy, Normal, Hard, VeryHard, Hell, Inferno, Lunatic, Holic, Epic, Ultimate, Impossible, TheFinal \
+    = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 
 Lottery4StartTime = 144
 Lottery8StartTime = 296

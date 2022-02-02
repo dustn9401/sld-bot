@@ -204,18 +204,24 @@ class BotController:
 
     async def unit_upgrade(self, session_upgrade_count):
         await self.select_center()
-        buy_count = min(session_upgrade_count + 1, 5)
-        await self.buy_gas(buy_count)
+        buy_gas_count = random.randint(2, 4 + session_upgrade_count)
+        await self.buy_gas(buy_gas_count)
         await send_key_press_async(self.ahk_win, KeyMaps.UpgradeZone)
+        for i in range(10):
+            await send_key_press_async(self.ahk_win, 'q', delay=0.01)
+            await send_key_press_async(self.ahk_win, 'w', delay=0.01)
+            await send_key_press_async(self.ahk_win, 'e', delay=0.01)
+            await send_key_press_async(self.ahk_win, 'r', delay=0.01)
+            await send_key_press_async(self.ahk_win, 't', delay=0.01)
+            await send_key_press_async(self.ahk_win, 'a', delay=0.01)
+        await self.select_center()
 
-        for i in range(5):
-            await send_key_press_async(self.ahk_win, 'q')
-            await send_key_press_async(self.ahk_win, 'w')
-            await send_key_press_async(self.ahk_win, 'e')
-            await send_key_press_async(self.ahk_win, 'r')
-            await send_key_press_async(self.ahk_win, 't')
-            await send_key_press_async(self.ahk_win, 'a')
-
+    async def race_upgrade(self, race):
+        await self.select_center()
+        await send_key_press_async(self.ahk_win, KeyMaps.UpgradeZone)
+        for i in range(10):
+            await send_key_press_async(self.ahk_win, race)
+        await self.select_center()
 
     async def game_update(self, session_data, randomizer):
         await self.handle_bank(session_data, randomizer)
@@ -231,7 +237,6 @@ class BotController:
 
     async def handle_pause(self, session_data):
         if session_data.force_quit_requested: return
-
         if image_search(self.screen, self.img_pausePopup) is None: return
         session_data.stopwatch.pause()
         print(f'paused: {session_data.stopwatch.get_elapsed()}')
@@ -258,7 +263,7 @@ class BotController:
     async def handle_captcha(self, session_data, randomizer):
         if session_data.force_quit_requested: return
         elapsed = session_data.stopwatch.get_elapsed()
-        if image_search(self.screen, self.img_captcha) is None:
+        if image_search(self.screen, self.img_captcha, accuracy=0.7) is None:
             return
 
         print(f'start handle captcha: {elapsed}')
@@ -266,11 +271,15 @@ class BotController:
 
         while True:
             await send_key_press_async(self.ahk_win, KeyMaps.Pause, delay=0.5)
+            session_data.stopwatch.pause()
+
             captcha_area =  self.screen[pos.captcha_data_bbox[1]:pos.captcha_data_bbox[1] + pos.captcha_data_bbox[3],
                             pos.captcha_data_bbox[0]:pos.captcha_data_bbox[0] + pos.captcha_data_bbox[2],:]
             path = f'C:/Users/kys/SLDbot/Images/Captchas/{uuid.uuid4().hex}.png'
             cv2.imwrite(path, captcha_area)
             result = await self.captcha_solver.solve(path)
+
+            session_data.stopwatch.resume()
             await send_key_press_async(self.ahk_win, KeyMaps.Pause)
 
             captcha_id = result['captchaId']
@@ -280,7 +289,7 @@ class BotController:
             await send_key_press_async(self.ahk_win, captcha_result)
             await send_click_async(pos.captcha_submit, delay=0.5)
 
-            is_success = image_search(self.screen, self.img_captcha) is None
+            is_success = image_search(self.screen, self.img_captcha, accuracy=0.7) is None
             print(f'try={try_count} result={captcha_result}, is_success={is_success}')
             self.captcha_solver.solver.report(captcha_id, is_success)
 
@@ -296,21 +305,26 @@ class BotController:
 
     async def force_quit_game(self, session_data):
         session_data.force_quit_requested = True
-        await send_key_press_async(self.ahk_win, KeyMaps.Pause)
+        await send_key_press_async(self.ahk_win, KeyMaps.Pause, delay=1)
         await send_key_press_async(self.ahk_win, 'q')
 
     async def handle_check_game_end(self, session_data, randomizer):
         if session_data.force_quit_requested: return
         if session_data.stopwatch.get_elapsed() < 200: return
-        if image_search(self.screen, self.img_center, accuracy=0.6) is not None:
-            session_data.game_over_counter = 0
+
+        if randomizer.exit_manually and\
+            session_data.stopwatch.get_elapsed() > randomizer.manual_exit_time and\
+            session_data.rune_claim_count >= 4:
+            await self.force_quit_game(session_data)
             return
 
-        session_data.game_over_counter += 1
-        print(f'game over counter = {session_data.game_over_counter}')
-        if session_data.game_over_counter < 10: return
-        await send_key_press_async(self.ahk_win, KeyMaps.Pause, delay=0.5)
-        await send_key_press_async(self.ahk_win, 'Q', delay=10)
+        if image_search(self.screen, self.img_center, accuracy=0.6) is not None:
+            session_data.game_over_counter = 0
+        else:
+            session_data.game_over_counter += 1
+            print(f'game over counter = {session_data.game_over_counter}')
+            if session_data.game_over_counter >= 30:
+                await self.force_quit_game(session_data)
 
     async def handle_bank(self, session_data, randomizer):
         if session_data.force_quit_requested: return
@@ -322,15 +336,15 @@ class BotController:
             await self.put_money()
 
         elapsed = session_data.stopwatch.get_elapsed()
-        if elapsed > 300 and session_data.increase_interest_count == 0:
+        if elapsed > 280 and session_data.increase_interest_count == 0:
             await increase_interest()
-        elif elapsed > 420 and session_data.increase_interest_count == 1:
+        elif elapsed > 380 and session_data.increase_interest_count == 1:
             await increase_interest()
-        elif elapsed > 540 and session_data.increase_interest_count == 2:
+        elif elapsed > 480 and session_data.increase_interest_count == 2:
             await increase_interest()
-        elif elapsed > 700 and session_data.increase_interest_count == 3:
+        elif elapsed > 600 and session_data.increase_interest_count == 3:
             await increase_interest()
-        elif elapsed > 850 and session_data.increase_interest_count == 4:
+        elif elapsed > 720 and session_data.increase_interest_count == 4:
             await increase_interest()
 
 
@@ -384,8 +398,14 @@ class BotController:
     async def handle_upgrade(self, session_data, randomizer):
         if session_data.force_quit_requested: return
         elapsed = session_data.stopwatch.get_elapsed()
+
+        # graph noise
+        if randomizer.noise_flag and elapsed > randomizer.noise_time:
+            randomizer.noise_flag = False
+            await self.race_upgrade('q')
+
         if elapsed > randomizer.upgrade_start_time and \
-                session_data.upgrade_count < 8 and\
+                session_data.upgrade_count < 6 and\
                 elapsed - session_data.last_upgrade > randomizer.next_upgrade_interval:
             print(f'unit upgrade: {elapsed}')
             session_data.on_upgrade()
@@ -396,6 +416,8 @@ class BotController:
         if session_data.force_quit_requested: return
         if image_search(self.screen, self.img_rune_box, 0.7) is None: return
         print(f'handle rune box: {session_data.stopwatch.get_elapsed()}')
+        session_data.on_claim_rune()
+
         await send_click_async(pos.btn_start_roulette, delay=10)
         await send_click_async(pos.btn_claim_rune, delay=0.5)
 
@@ -433,6 +455,8 @@ class SessionData:
         self.game_over_counter = 0
         self.last_merge = 0
         self.force_quit_requested = False
+        self.rune_claim_count = 0
+        self.spend_all = False
 
     def on_lottery(self):
         self.last_lottery = self.stopwatch.get_elapsed()
@@ -449,6 +473,9 @@ class SessionData:
     def on_merge(self):
         self.last_merge = self.stopwatch.get_elapsed()
 
+    def on_claim_rune(self):
+        self.rune_claim_count += 1
+
 
 class Randomizer:
     def __init__(self):
@@ -464,38 +491,36 @@ class Randomizer:
         self.merge_start_time = random.randint(800, 1500)
         self.upgrade_start_time = random.randint(200, 300) if self.bool_seed else random.randint(300, 400)
         self.exit_manually = random.randint(0, 2) < 2
+        self.manual_exit_time = Constants.Round110Time + random.randint(10, 100)
         self.lottery8_start_time = Constants.Lottery8StartTime + (random.randint(0, 10) if self.bool_seed else random.randint(11, 20))
+        self.noise_flag = random.randint(0, 1) == 0
+        self.noise_time = random.randint(30, self.upgrade_start_time)
+        self.spend_all_time = random.randint(800, 1200)
 
     def on_merge(self):
         self.next_merge_interval = random.randint(100, 200)
 
     def on_lottery(self, session_data: SessionData):
-        def get_interval():
+        def get_base_interval():
             if session_data.lottery_count < 3: return 70
             if session_data.lottery_count < 5: return 55
             if session_data.lottery_count < 7: return 45
             if session_data.lottery_count > 40: return random.randint(1, 50)
             return 35
 
-        interval = get_interval()
+        interval = get_base_interval()
         self.next_lottery_interval = random.randint(interval - self.randint_1_10, interval + self.randint_1_10)
-        if random.randint(0, 1) == 0:
-            self.refresh_random_values()
 
     def on_upgrade(self, session_data: SessionData):
-        def get_interval():
-            elapsed = session_data.stopwatch.get_elapsed()
-            if elapsed < 400: return random.randint(40, 60) if self.bool_seed else random.randint(30, 50)
-            if elapsed < 600: return random.randint(70, 100) if self.bool_seed else random.randint(50, 70)
-            return random.randint(70, 110)
+        def get_base_interval():
+            if session_data.upgrade_count <= 1: return random.randint(80, 120)
+            if session_data.upgrade_count == 2: return random.randint(1, 10) if self.randint_1_10 < 2 else random.randint(60, 80) if self.bool_seed else random.randint(10, 150)
+            if session_data.upgrade_count == 3: return random.randint(70, 100) if self.bool_seed else random.randint(10, 150)
+            return random.randint(10, 200)
 
-        interval = get_interval()
+        interval = get_base_interval()
         self.next_upgrade_interval = interval + random.randint(self.randint_1_10, self.randint_1_10 + self.randint_1_100)
-
-        if random.randint(0, 1) == 0:
-            self.refresh_random_values()
 
     def refresh_random_values(self):
         self.randint_1_10 = random.randint(4, 7) if self.bool_seed else random.randint(1, 3) if random.randint(0, 1) == 0 else random.randint(8, 10)
         self.randint_1_100 = random.randint(40, 70) if self.bool_seed else random.randint(1, 39) if random.randint(0, 1) == 0 else random.randint(71, 100)
-

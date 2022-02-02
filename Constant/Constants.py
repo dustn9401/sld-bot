@@ -5,4 +5,4 @@ Lottery4StartTime = 144
 Lottery8StartTime = 296
 
 UpgradeStartTime = 350
-Round110Time = 3300
+Round110Time = 3060

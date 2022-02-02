@@ -224,7 +224,7 @@ class BotController:
         await self.handle_check_game_end(session_data, randomizer)
 
     async def handle_merge_units(self, session_data, randomizer):
-        if session_data.stopwatch.get_elapsed() < 1000: return
+        if session_data.stopwatch.get_elapsed() < randomizer.merge_start_time: return
         if time.time() - session_data.last_merge < randomizer.next_merge_interval: return
         print(f'merge units: {session_data.stopwatch.get_elapsed()}')
         session_data.on_merge()
@@ -270,6 +270,7 @@ class BotController:
 
     async def handle_lottery_8(self, session_data, randomizer):
         elapsed = session_data.stopwatch.get_elapsed()
+        if elapsed > randomizer.stop_lottery_time: return
         if elapsed > Constants.Lottery8StartTime + randomizer.randint_1_10 and \
                 not session_data.unlock_lottery_8:
             print(f'unlock lottery8: {elapsed}')
@@ -384,6 +385,9 @@ class Randomizer:
         self.next_upgrade_interval = 0
         self.refresh_random_values()
         self.next_merge_interval = 0
+        self.stop_lottery_time = random.randint(2500, 3000)
+        self.merge_start_time = random.randint(800, 1500)
+        self.upgrade_start_time = random.randint(250, 350) if self.bool_seed else random.randint(300, 400)
 
     def on_merge(self):
         self.next_merge_interval = random.randint(100, 200)
@@ -393,8 +397,8 @@ class Randomizer:
             if session_data.lottery_count < 3: return 70
             if session_data.lottery_count < 5: return 55
             if session_data.lottery_count < 7: return 45
-            if session_data.lottery_count < 15: return 35
-            return 25
+            if session_data.lottery_count > 40: return random.randint(1, 50)
+            return 35
 
         interval = get_interval()
         self.next_lottery_interval = random.randint(interval - self.randint_1_10, interval + self.randint_1_10)
@@ -404,9 +408,9 @@ class Randomizer:
     def on_upgrade(self, session_data: SessionData):
         def get_interval():
             elapsed = session_data.stopwatch.get_elapsed()
-            if elapsed < 400: return 50
-            if elapsed < 600: return 70
-            return 90
+            if elapsed < 400: return random.randint(20, 50)
+            if elapsed < 600: return random.randint(50, 90)
+            return random.randint(70, 110)
 
         interval = get_interval()
         self.next_upgrade_interval = interval + random.randint(self.randint_1_10, self.randint_1_10 + self.randint_1_100)

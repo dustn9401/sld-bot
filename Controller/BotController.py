@@ -327,21 +327,23 @@ class BotController:
                             pos.captcha_data_bbox[0]:pos.captcha_data_bbox[0] + pos.captcha_data_bbox[2],:]
             path = f'C:/Users/kys/SLDbot/Images/Captchas/{uuid.uuid4().hex}.png'
             cv2.imwrite(path, captcha_area)
-            result = await self.captcha_solver.solve(path)
 
+            is_success = False
+            result = await self.captcha_solver.solve(path)
             session_data.stopwatch.resume()
             await send_key_press_async(self.ahk_win, KeyMaps.Pause)
 
-            captcha_id = result['captchaId']
-            captcha_result = result['code']
+            if result is not None:
+                captcha_id = result['captchaId']
+                captcha_result = result['code']
 
-            await send_click_async(pos.captcha_input)
-            await send_key_press_async(self.ahk_win, captcha_result)
-            await send_click_async(pos.captcha_submit, delay=0.5)
+                await send_click_async(pos.captcha_input)
+                await send_key_press_async(self.ahk_win, captcha_result)
+                await send_click_async(pos.captcha_submit, delay=0.5)
 
-            is_success = image_search(self.screen, self.img_captcha, accuracy=0.7) is None
-            print(f'try={try_count} result={captcha_result}, is_success={is_success}')
-            self.captcha_solver.solver.report(captcha_id, is_success)
+                is_success = image_search(self.screen, self.img_captcha, accuracy=0.7) is None
+                print(f'try={try_count} result={captcha_result}, is_success={is_success}')
+                self.captcha_solver.solver.report(captcha_id, is_success)
 
             if is_success:
                 break

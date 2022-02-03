@@ -92,7 +92,7 @@ class BotController:
 
     async def handle_ready_popup(self):
         print('handle_ready_popup')
-        await send_click_async(pos.btn_game_start)
+        await send_click_async(self.ahk_win, pos.btn_game_start)
         await self.wait_for_screen(self.img_loadingScreen)
         await asyncio.sleep(1)
         self.state = LoadingScreen
@@ -101,14 +101,14 @@ class BotController:
         print('handle_loading_screen')
         btn_bbox = await self.wait_for_bbox(self.img_btn_single)
         print(f"single btn: {btn_bbox}")
-        await send_click_async(self.get_center_pos(btn_bbox))
+        await send_click_async(self.ahk_win, self.get_center_pos(btn_bbox))
         await asyncio.sleep(3)
         self.state = SelectEternal
 
     async def handle_select_eternal(self):
         btn_bbox = await self.wait_for_bbox(self.img_btn_eternal)
         print(f"eternal btn: {btn_bbox}")
-        await send_click_async(self.get_center_pos(btn_bbox))
+        await send_click_async(self.ahk_win, self.get_center_pos(btn_bbox))
         await asyncio.sleep(5)
         self.state = SelectDifficulty
 
@@ -117,13 +117,13 @@ class BotController:
 
     async def handle_select_difficulty(self):
         for i in range(self.configuration.difficulty):
-            await send_click_async(pos.btn_difficulty_down, delay=0.05)
-        await send_click_async(pos.btn_DT, delay=0.05)
-        await send_click_async(pos.btn_RS, delay=0.05)
-        await send_click_async(pos.btn_HY, delay=0.05)
-        await send_click_async(pos.btn_RP, delay=0.05)
-        await send_click_async(pos.btn_NB, delay=0.05)
-        await send_click_async(pos.btn_ready, delay=0.05)
+            await send_click_async(self.ahk_win, pos.btn_difficulty_down, delay=0.05)
+        await send_click_async(self.ahk_win, pos.btn_DT, delay=0.05)
+        await send_click_async(self.ahk_win, pos.btn_RS, delay=0.05)
+        await send_click_async(self.ahk_win, pos.btn_HY, delay=0.05)
+        await send_click_async(self.ahk_win, pos.btn_RP, delay=0.05)
+        await send_click_async(self.ahk_win, pos.btn_NB, delay=0.05)
+        await send_click_async(self.ahk_win, pos.btn_ready, delay=0.05)
         await asyncio.sleep(10)
         self.state = PlayMain
 
@@ -132,25 +132,20 @@ class BotController:
 
         async def setup_start_settings():
             await send_key_press_async(self.ahk_win, KeyMaps.Setting)
-            await send_click_async(pos.btn_optimize)
-            await send_click_async(pos.btn_improverag_off)
+            await send_click_async(self.ahk_win, pos.btn_optimize)
+            await send_click_async(self.ahk_win, pos.btn_improverag_off)
             await send_key_press_async(self.ahk_win, KeyMaps.Setting)
 
         async def bank_setting():
             await send_key_press_async(self.ahk_win, KeyMaps.Bank)
             for i in range(10):
-                send_click(pos.btn_auto_put_money)
-                await asyncio.sleep(0.01)
-            await send_click_async(pos.btn_put_money)
+                await send_click_async(self.ahk_win, pos.btn_auto_put_money, delay=0.1)
+            await send_click_async(self.ahk_win, pos.btn_put_money)
 
         async def use_sp():
             await send_key_press_async(self.ahk_win, KeyMaps.Characteristic)
-            await send_click_async(pos.btn_load_characteristic)
+            await send_click_async(self.ahk_win, pos.btn_load_characteristic)
             await send_key_press_async(self.ahk_win, KeyMaps.Characteristic)
-
-        async def setup_rally():
-            await self.select_center()
-            await send_click_async(pos.TopLeft, btn=1)
 
         session_data = SessionData()
         randomizer = Randomizer()
@@ -158,7 +153,7 @@ class BotController:
         await setup_start_settings()
         await bank_setting()
         await use_sp()
-        await setup_rally()
+        await self.change_rally(0)
 
         while not check_similarity(self.screen, self.img_resultPopup):
             await self.game_update(session_data, randomizer)
@@ -168,7 +163,7 @@ class BotController:
         print(f'session end, play time = {session_data.stopwatch.get_elapsed()}')
 
     async def handle_result_popup(self):
-        await send_click_async(pos.btn_replay)
+        await send_click_async(self.ahk_win, pos.btn_replay)
         await self.wait_for_screen(self.img_readyPopup, similarity=0.6)
         await asyncio.sleep(5)
         self.state = ReadyPopup
@@ -178,12 +173,12 @@ class BotController:
 
     async def get_money(self, how_many):
         # await send_key_press_async(self.ahk_win, KeyMaps.Bank)
-        await send_click_async(pos.btn_get_money_10 if how_many == 10 else pos.btn_get_money_100)
+        await send_click_async(self.ahk_win, pos.btn_get_money_10 if how_many == 10 else pos.btn_get_money_100)
         # await send_key_press_async(self.ahk_win, KeyMaps.Bank)
 
     async def put_money(self):
         # await send_key_press_async(self.ahk_win, KeyMaps.Bank)
-        await send_click_async(pos.btn_put_money)
+        await send_click_async(self.ahk_win, pos.btn_put_money)
         # await send_key_press_async(self.ahk_win, KeyMaps.Bank)
 
     async def buy_gas(self, how_many):
@@ -202,7 +197,8 @@ class BotController:
             pos.BottomLeft if rally == 1 else \
                 pos.TopRight if rally == 2 else \
                     pos.BottomRight
-        await send_click_async(position, btn=1)
+        await send_key_press_async(self.ahk_win, 'y')
+        await send_click_async(self.ahk_win, position)
 
     async def unit_upgrade(self, session_upgrade_count):
         await self.select_center()
@@ -210,12 +206,7 @@ class BotController:
         await self.buy_gas(buy_gas_count)
         await send_key_press_async(self.ahk_win, KeyMaps.UpgradeZone)
         for i in range(10):
-            await send_key_press_async(self.ahk_win, 'q', delay=0.01)
-            await send_key_press_async(self.ahk_win, 'w', delay=0.01)
-            await send_key_press_async(self.ahk_win, 'e', delay=0.01)
-            await send_key_press_async(self.ahk_win, 'r', delay=0.01)
-            await send_key_press_async(self.ahk_win, 't', delay=0.01)
-            await send_key_press_async(self.ahk_win, 'a', delay=0.01)
+            await send_key_press_async(self.ahk_win, 'qwerta')
         await self.select_center()
 
     async def race_upgrade(self, race):
@@ -263,7 +254,7 @@ class BotController:
             return
 
         btn_screen_pos = self.get_center_pos(claim_btn_bbox)
-        await send_click_async(btn_screen_pos, delay=0.5)
+        await send_click_async(self.ahk_win, btn_screen_pos, delay=0.5)
 
         empty_slot_pos = None
         idx = 0
@@ -278,7 +269,7 @@ class BotController:
             idx += 1
 
         if empty_slot_pos is not None:
-            await send_click_async(empty_slot_pos, delay=0.5)
+            await send_click_async(self.ahk_win, empty_slot_pos, delay=0.5)
         else:
             print(f'cannot find empty jewel slot!!')
 
@@ -307,7 +298,7 @@ class BotController:
 
         await send_key_press_async(self.ahk_win, KeyMaps.MergeChart)
         for p in pos.merge_chart_units:
-            await send_click_async(p, delay=0.01)
+            await send_click_async(self.ahk_win, p, delay=0.01)
         await send_key_press_async(self.ahk_win, KeyMaps.MergeChart)
 
     async def handle_captcha(self, session_data, randomizer):
@@ -337,13 +328,13 @@ class BotController:
                 captcha_id = result['captchaId']
                 captcha_result = result['code']
 
-                await send_click_async(pos.captcha_input)
+                await send_click_async(self.ahk_win, pos.captcha_input)
                 await send_key_press_async(self.ahk_win, captcha_result)
-                await send_click_async(pos.captcha_submit, delay=0.5)
+                await send_click_async(self.ahk_win, pos.captcha_submit, delay=0.5)
 
                 is_success = image_search(self.screen, self.img_captcha, accuracy=0.7) is None
-                print(f'try={try_count} result={captcha_result}, is_success={is_success}')
-                self.captcha_solver.solver.report(captcha_id, is_success)
+                print(f'try={try_count} result={result}, is_success={is_success}')
+                self.captcha_solver.report(captcha_id, is_success)
 
             if is_success:
                 break
@@ -353,7 +344,7 @@ class BotController:
                     await self.force_quit_game(session_data)
                     break
                 else:
-                    await send_click_async(pos.captcha_refresh)
+                    await send_click_async(self.ahk_win, pos.captcha_refresh)
 
     async def force_quit_game(self, session_data):
         session_data.force_quit_requested = True
@@ -364,9 +355,11 @@ class BotController:
         if session_data.force_quit_requested: return
         if session_data.stopwatch.get_elapsed() < 200: return
 
-        if randomizer.exit_manually and\
-            session_data.stopwatch.get_elapsed() > randomizer.manual_exit_time and\
-            session_data.rune_claim_count >= 4:
+        if randomizer.exit_after_90r and session_data.rune_claim_count >= 3:
+            await self.force_quit_game(session_data)
+            return
+
+        if randomizer.exit_after_110r and session_data.rune_claim_count >= 4:
             await self.force_quit_game(session_data)
             return
 
@@ -384,7 +377,7 @@ class BotController:
             print(f'increase interest: {session_data.stopwatch.get_elapsed()}')
             session_data.on_increase_interest()
             await self.get_money(100)
-            await send_click_async(pos.btn_increase_interest)
+            await send_click_async(self.ahk_win, pos.btn_increase_interest)
             await self.put_money()
 
         elapsed = session_data.stopwatch.get_elapsed()
@@ -470,17 +463,17 @@ class BotController:
         print(f'handle rune box: {session_data.stopwatch.get_elapsed()}')
         session_data.on_claim_rune()
 
-        await send_click_async(pos.btn_start_roulette, delay=10)
-        await send_click_async(pos.btn_claim_rune, delay=0.5)
+        await send_click_async(self.ahk_win, pos.btn_start_roulette, delay=10)
+        await send_click_async(self.ahk_win, pos.btn_claim_rune, delay=0.5)
 
         if image_search(self.screen, self.img_rune_result, 0.7) is None: return
         if self.configuration.rune_gain_behaviour == 0:
             print(f'sell rune: {session_data.stopwatch.get_elapsed()}')
-            await send_click_async(pos.btn_sell_rune, delay=0.5)
+            await send_click_async(self.ahk_win, pos.btn_sell_rune, delay=0.5)
         elif self.configuration.rune_gain_behaviour == 1:
             print(f'reinforce rune slot: {self.configuration.rune_reinforce_slot_index}')
-            await send_click_async(pos.btn_reinforce_rune, delay=0.5)
-            await send_click_async(pos.rune_reinforce_positions[self.configuration.rune_reinforce_slot_index], delay=0.5)
+            await send_click_async(self.ahk_win, pos.btn_reinforce_rune, delay=0.5)
+            await send_click_async(self.ahk_win, pos.rune_reinforce_positions[self.configuration.rune_reinforce_slot_index], delay=0.5)
         else:
             pass
 
@@ -488,9 +481,9 @@ class BotController:
         if session_data.force_quit_requested: return
         if image_search(self.screen, self.img_skin_box) is None: return
         print(f'handle skin box: {session_data.stopwatch.get_elapsed()}')
-        await send_click_async(pos.btn_open_skin_box, delay=5)
-        await send_click_async(pos.btn_open_skin_box, delay=1)
-        await send_click_async(pos.btn_close_skin_popup, delay=1)
+        await send_click_async(self.ahk_win, pos.btn_open_skin_box, delay=5)
+        await send_click_async(self.ahk_win, pos.btn_open_skin_box, delay=1)
+        await send_click_async(self.ahk_win, pos.btn_close_skin_popup, delay=1)
 
 
 class SessionData:
@@ -539,17 +532,18 @@ class Randomizer:
         self.next_upgrade_interval = 0
         self.refresh_random_values()
         self.next_merge_interval = 0
-        self.stop_lottery_time = random.randint(2000, 3000)
+        self.stop_lottery_time = random.randint(1500, 2500)
         self.merge_start_time = random.randint(800, 1500)
         self.upgrade_start_time = random.randint(200, 300) if self.bool_seed else random.randint(300, 400)
-        self.exit_manually = random.randint(0, 2) < 2
-        self.manual_exit_time = Constants.Round110Time + random.randint(10, 100)
         self.lottery8_start_time = Constants.Lottery8StartTime + (random.randint(0, 10) if self.bool_seed else random.randint(11, 20))
         self.noise_flag = random.randint(0, 1) == 0
         self.noise_time = random.randint(30, self.upgrade_start_time)
         self.spend_all_time = random.randint(800, 1200)
         self.apm_noise_times = [random.randint(100, 3000) for i in range(random.randint(3, 10))]
         self.apm_noise_times = sorted(self.apm_noise_times)
+        self.exit_after_110r = random.randint(0, 2) <= 1
+        self.exit_after_90r = random.randint(0, 4) == 0
+        print(f'randomizer: 90r={self.exit_after_90r}, 110r={self.exit_after_110r}')
 
     def on_merge(self):
         self.next_merge_interval = random.randint(100, 200)

@@ -28,3 +28,15 @@ class CaptchaSolver:
                 print(e)
 
             return result
+
+    def report(self, captcha_id, result):
+        try:
+            self.solver.report(captcha_id, result)
+        except ValidationException as e:
+            print(e)
+        except NetworkException as e:
+            print(e)
+        except ApiException as e:
+            print(e)
+        except TimeoutException as e:
+            print(e)

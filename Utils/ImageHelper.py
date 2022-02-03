@@ -19,9 +19,9 @@ def get_similarity(a: numpy.ndarray, b: numpy.ndarray):
 
 def image_search(src, template, accuracy=0.8):
     if src is None or template is None: return None
-
     h, w = template.shape
-    src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
-    res = cv2.matchTemplate(src_gray, template, cv2.TM_CCOEFF_NORMED)
+    if len(src.shape) == 3:
+        src = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+    res = cv2.matchTemplate(src, template, cv2.TM_CCOEFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
     return None if max_val < accuracy else (max_loc[0], max_loc[1] + 30, w, h)

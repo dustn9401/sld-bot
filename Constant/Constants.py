@@ -6,3 +6,6 @@ Lottery8StartTime = 296
 
 UpgradeStartTime = 350
 Round110Time = 3060
+
+jewel_empty_rgb_min = (80, 40, 25)
+jewel_empty_rgb_max = (100, 60, 45)

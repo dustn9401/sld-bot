@@ -40,6 +40,8 @@ class BotController:
         self.img_center = cv2.imread(r'C:\Users\kys\SLDbot\Images\center.png', cv2.IMREAD_GRAYSCALE)
         self.img_captcha = cv2.imread(r'C:\Users\kys\SLDbot\Images\captcha.png', cv2.IMREAD_GRAYSCALE)
         self.img_pausePopup = cv2.imread(r'C:\Users\kys\SLDbot\Images\popup_pause.png', cv2.IMREAD_GRAYSCALE)
+        self.img_jewel_box = cv2.imread(r'C:\Users\kys\SLDbot\Images\jewel_box.png', cv2.IMREAD_GRAYSCALE)
+        self.img_btn_jewel_claim = cv2.imread(r'C:\Users\kys\SLDbot\Images\btn_jewel_claim.png', cv2.IMREAD_GRAYSCALE)
         self.state = ReadyPopup
         self.screen = None
         self.configuration = configuration
@@ -158,7 +160,7 @@ class BotController:
         await use_sp()
         await setup_rally()
 
-        while not check_similarity(self.screen, self.img_resultPopup) and not session_data.force_quit_requested:
+        while not check_similarity(self.screen, self.img_resultPopup):
             await self.game_update(session_data, randomizer)
             await asyncio.sleep(1)
 
@@ -200,7 +202,7 @@ class BotController:
             pos.BottomLeft if rally == 1 else \
                 pos.TopRight if rally == 2 else \
                     pos.BottomRight
-        await send_click_async(position, 1)
+        await send_click_async(position, btn=1)
 
     async def unit_upgrade(self, session_upgrade_count):
         await self.select_center()
@@ -234,6 +236,54 @@ class BotController:
         await self.handle_check_game_end(session_data, randomizer)
         await self.handle_pause(session_data)
         await self.handle_captcha(session_data, randomizer)
+        await self.handle_jewel_box(session_data)
+        await self.handle_apm_noise(session_data, randomizer)
+
+    async def handle_apm_noise(self, session_data, randomizer):
+        elapsed = session_data.stopwatch.get_elapsed()
+        if len(randomizer.apm_noise_times) > 0 and\
+            elapsed > randomizer.apm_noise_times[0]:
+            print(f'make apm noise: {elapsed}, remain times: {randomizer.apm_noise_times}')
+            randomizer.apm_noise_times.pop(0)
+            press_count = random.randint(100, 500)
+            for i in range(press_count):
+                await send_key_press_async(self.ahk_win, KeyMaps.Center, delay=0.01)
+                await send_key_press_async(self.ahk_win, KeyMaps.Units, delay=0.01)
+
+
+    async def handle_jewel_box(self, session_data):
+        if session_data.force_quit_requested: return
+        jewel_box_bbox = image_search(self.screen, self.img_jewel_box, accuracy=0.5)
+        if jewel_box_bbox is None: return
+        claim_btn_local_bbox = image_search(self.img_jewel_box, self.img_btn_jewel_claim)
+        if claim_btn_local_bbox is None:
+            print('cannot find jewel claim btn!!')
+            return
+
+        claim_btn_world_bbox = (jewel_box_bbox[0] + claim_btn_local_bbox[0], jewel_box_bbox[1] + claim_btn_local_bbox[1],
+                                claim_btn_local_bbox[2], claim_btn_local_bbox[3])
+        btn_screen_pos = self.get_center_pos(claim_btn_world_bbox)
+        await send_click_async(btn_screen_pos, delay=0.5)
+
+        empty_slot_pos = None
+        idx = 0
+        for slot in pos.jewel_slots:
+            color = self.screen[slot[1], slot[0]]
+            if Constants.jewel_empty_rgb_min[0] <= color[0] <= Constants.jewel_empty_rgb_max[0] and \
+                Constants.jewel_empty_rgb_min[1] <= color[1] <= Constants.jewel_empty_rgb_max[1] and \
+                Constants.jewel_empty_rgb_min[2] <= color[2] <= Constants.jewel_empty_rgb_max[2]:
+                empty_slot_pos = slot
+                print(f'empty slot idx: {idx}')
+                break
+            idx += 1
+
+        if empty_slot_pos is not None:
+            await send_click_async(empty_slot_pos, delay=0.5)
+        else:
+            print(f'cannot find empty jewel slot!!')
+
+        await send_key_press_async(self.ahk_win, KeyMaps.Jewel)
+
 
     async def handle_pause(self, session_data):
         if session_data.force_quit_requested: return
@@ -496,15 +546,18 @@ class Randomizer:
         self.noise_flag = random.randint(0, 1) == 0
         self.noise_time = random.randint(30, self.upgrade_start_time)
         self.spend_all_time = random.randint(800, 1200)
+        self.apm_noise_times = [random.randint(100, 3000) for i in range(random.randint(5, 20))]
+        self.apm_noise_times = sorted(self.apm_noise_times)
+        print(self.apm_noise_times)
 
     def on_merge(self):
         self.next_merge_interval = random.randint(100, 200)
 
     def on_lottery(self, session_data: SessionData):
         def get_base_interval():
-            if session_data.lottery_count < 3: return 70
-            if session_data.lottery_count < 5: return 55
-            if session_data.lottery_count < 7: return 45
+            if session_data.lottery_count < (3 if self.bool_seed else 1): return 60
+            if session_data.lottery_count < (5 if self.bool_seed else 3): return 50
+            if session_data.lottery_count < (7 if self.bool_seed else 5): return 40
             if session_data.lottery_count > 40: return random.randint(1, 50)
             return 35
 

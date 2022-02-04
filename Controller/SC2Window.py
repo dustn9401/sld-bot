@@ -26,6 +26,7 @@ class SC2Window:
 
         self.ahk_win = ahk.find_window(class_name=b'StarCraft II')
         self.ahk_win.activate()
+        self.ahk_win.set_always_on_top(False)
         self.ahk_win.move(self.offset_x, self.offset_y, *Resolution)
 
         self.hwnd = win32gui.FindWindow(None, '스타크래프트 II')

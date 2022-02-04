@@ -42,7 +42,6 @@ class BotController:
         self.img_pausePopup = cv2.imread(r'C:\Users\kys\SLDbot\Images\popup_pause.png', cv2.IMREAD_GRAYSCALE)
         self.img_jewel_box = cv2.imread(r'C:\Users\kys\SLDbot\Images\jewel_box.png', cv2.IMREAD_GRAYSCALE)
         self.img_btn_jewel_claim = cv2.imread(r'C:\Users\kys\SLDbot\Images\btn_jewel_claim.png', cv2.IMREAD_GRAYSCALE)
-        self.state = ReadyPopup
         self.screen = None
         self.configuration = configuration
         self.play_count = 0
@@ -63,25 +62,12 @@ class BotController:
         capture_thread.start()
 
         while True:
-            if self.state == ReadyPopup:
-                await self.handle_ready_popup()
-            elif self.state == LoadingScreen:
-                await self.handle_loading_screen()
-            elif self.state == SelectEternal:
-                await self.handle_select_eternal()
-            elif self.state == SelectDifficulty:
-                await self.handle_select_difficulty()
-            elif self.state == PlayMain:
-                await self.main_game_update()
-            elif self.state == ResultPopup:
-                await self.handle_result_popup()
-
+            await self.handle_ready_popup()
+            await self.handle_prepare_game()
+            await self.main_game_update()
+            await self.handle_result_popup()
             self.play_count += 1
-
-    async def wait_for_screen(self, img: numpy.ndarray, similarity = 0.8):
-        while not check_similarity(self.screen, img, cut_line=similarity):
-            await asyncio.sleep(1)
-        await asyncio.sleep(1)
+            print(f'total play count={self.play_count}, total elapsed={self.stopwatch.get_elapsed():.2f}')
 
     async def wait_for_bbox(self, img: numpy.ndarray):
         ret = None
@@ -90,42 +76,45 @@ class BotController:
             await asyncio.sleep(1)
         return ret
 
+    async def handle_result_popup(self):
+        print('handle_result_popup')
+        while not check_similarity(self.screen, self.img_resultPopup, cut_line=0.6):
+            await send_click_async(self.ahk_win, pos.btn_replay, delay=3)
+
     async def handle_ready_popup(self):
         print('handle_ready_popup')
-        await send_click_async(self.ahk_win, pos.btn_game_start)
-        await self.wait_for_screen(self.img_loadingScreen)
-        await asyncio.sleep(1)
-        self.state = LoadingScreen
+        while not check_similarity(self.screen, self.img_loadingScreen):
+            await send_click_async(self.ahk_win, pos.btn_game_start, delay=3)
 
-    async def handle_loading_screen(self):
-        print('handle_loading_screen')
+    async def handle_prepare_game(self):
+        print('handle_prepare_game')
+
+        # find single button and click
         btn_bbox = await self.wait_for_bbox(self.img_btn_single)
-        print(f"single btn: {btn_bbox}")
         await send_click_async(self.ahk_win, self.get_center_pos(btn_bbox))
-        await asyncio.sleep(3)
-        self.state = SelectEternal
 
-    async def handle_select_eternal(self):
+        # find eternal button and click
         btn_bbox = await self.wait_for_bbox(self.img_btn_eternal)
-        print(f"eternal btn: {btn_bbox}")
         await send_click_async(self.ahk_win, self.get_center_pos(btn_bbox))
+
         await asyncio.sleep(5)
-        self.state = SelectDifficulty
 
-    def get_center_pos(self, bbox):
-        return (bbox[0] + bbox[2] // 2), (bbox[1] + bbox[3] // 2)
-
-    async def handle_select_difficulty(self):
+        # select difficulty
         for i in range(self.configuration.difficulty):
             await send_click_async(self.ahk_win, pos.btn_difficulty_down, delay=0.05)
+
+        # select game mode
         await send_click_async(self.ahk_win, pos.btn_DT, delay=0.05)
         await send_click_async(self.ahk_win, pos.btn_RS, delay=0.05)
         await send_click_async(self.ahk_win, pos.btn_HY, delay=0.05)
         await send_click_async(self.ahk_win, pos.btn_RP, delay=0.05)
         await send_click_async(self.ahk_win, pos.btn_NB, delay=0.05)
+
         await send_click_async(self.ahk_win, pos.btn_ready, delay=0.05)
         await asyncio.sleep(10)
-        self.state = PlayMain
+
+    def get_center_pos(self, bbox):
+        return (bbox[0] + bbox[2] // 2), (bbox[1] + bbox[3] // 2)
 
     async def main_game_update(self):
         self.ahk_win.activate()
@@ -159,14 +148,7 @@ class BotController:
             await self.game_update(session_data, randomizer)
             await asyncio.sleep(1)
 
-        self.state = ResultPopup
         print(f'session end, play time = {session_data.stopwatch.get_elapsed()}')
-
-    async def handle_result_popup(self):
-        await send_click_async(self.ahk_win, pos.btn_replay)
-        await self.wait_for_screen(self.img_readyPopup, similarity=0.6)
-        await asyncio.sleep(5)
-        self.state = ReadyPopup
 
     async def select_center(self):
         await send_key_press_async(self.ahk_win, KeyMaps.Center)
@@ -232,8 +214,8 @@ class BotController:
 
     async def handle_apm_noise(self, session_data, randomizer):
         elapsed = session_data.stopwatch.get_elapsed()
-        if len(randomizer.apm_noise_times) > 0 and\
-            elapsed > randomizer.apm_noise_times[0]:
+        if len(randomizer.apm_noise_times) > 0 and \
+                elapsed > randomizer.apm_noise_times[0]:
             print(f'make apm noise: {elapsed}, remain times: {randomizer.apm_noise_times}')
             randomizer.apm_noise_times.pop(0)
             press_count = random.randint(100, 500)
@@ -261,8 +243,8 @@ class BotController:
         for slot in pos.jewel_slots:
             color = self.screen[slot[1], slot[0]]
             if Constants.jewel_empty_rgb_min[0] <= color[0] <= Constants.jewel_empty_rgb_max[0] and \
-                Constants.jewel_empty_rgb_min[1] <= color[1] <= Constants.jewel_empty_rgb_max[1] and \
-                Constants.jewel_empty_rgb_min[2] <= color[2] <= Constants.jewel_empty_rgb_max[2]:
+                    Constants.jewel_empty_rgb_min[1] <= color[1] <= Constants.jewel_empty_rgb_max[1] and \
+                    Constants.jewel_empty_rgb_min[2] <= color[2] <= Constants.jewel_empty_rgb_max[2]:
                 empty_slot_pos = slot
                 print(f'empty slot idx: {idx}')
                 break
@@ -356,10 +338,12 @@ class BotController:
         if session_data.stopwatch.get_elapsed() < 200: return
 
         if randomizer.exit_after_90r and session_data.rune_claim_count >= 3:
+            await asyncio.sleep(random.randint(1, 20))
             await self.force_quit_game(session_data)
             return
 
         if randomizer.exit_after_110r and session_data.rune_claim_count >= 4:
+            await asyncio.sleep(random.randint(1, 20))
             await self.force_quit_game(session_data)
             return
 
@@ -374,7 +358,7 @@ class BotController:
     async def handle_bank(self, session_data, randomizer):
         if session_data.force_quit_requested: return
         async def increase_interest():
-            print(f'increase interest: {session_data.stopwatch.get_elapsed()}')
+            print(f'increase interest({session_data.increase_interest_count}): {session_data.stopwatch.get_elapsed()}')
             session_data.on_increase_interest()
             await self.get_money(100)
             await send_click_async(self.ahk_win, pos.btn_increase_interest)
@@ -450,7 +434,7 @@ class BotController:
             await self.race_upgrade('q')
 
         if elapsed > randomizer.upgrade_start_time and \
-                session_data.upgrade_count < 6 and\
+                session_data.upgrade_count < 6 and \
                 elapsed - session_data.last_upgrade > randomizer.next_upgrade_interval:
             print(f'unit upgrade: {elapsed}')
             session_data.on_upgrade()
@@ -460,8 +444,8 @@ class BotController:
     async def handle_rune_box(self, session_data):
         if session_data.force_quit_requested: return
         if image_search(self.screen, self.img_rune_box, 0.7) is None: return
-        print(f'handle rune box: {session_data.stopwatch.get_elapsed()}')
         session_data.on_claim_rune()
+        print(f'handle rune box({session_data.rune_claim_count}): {session_data.stopwatch.get_elapsed()}')
 
         await send_click_async(self.ahk_win, pos.btn_start_roulette, delay=10)
         await send_click_async(self.ahk_win, pos.btn_claim_rune, delay=0.5)

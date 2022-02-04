@@ -17,6 +17,12 @@ async def send_key_press_async(ahk_win: ahk.window.Window, keys, delay=0.2):
     await asyncio.sleep(delay)
 
 
-async def send_click_async(ahk_win: ahk.window.Window, pos, delay=0.2):
-    ahk_win.click(pos, blocking=False, button='L')
+async def send_click_async(pos, delay=0.2):
+    ahk_inst.mouse_position = pos
+    ahk_inst.click(blocking=False)
+    await asyncio.sleep(delay)
+
+async def send_right_click_async(pos, delay=0.2):
+    ahk_inst.mouse_position = pos
+    ahk_inst.right_click(blocking=False)
     await asyncio.sleep(delay)

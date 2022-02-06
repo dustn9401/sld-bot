@@ -7,39 +7,10 @@ class CaptchaSolver:
     def __init__(self):
         self.solver = TwoCaptcha('04b58e5335ac7041a33e9cf1b3c5a03e')
 
-    def solve_internal(self, path):
-        try:
-            return self.solver.normal(path, numeric=1, minLength=5, maxLength=5)
-        except ValidationException as e:
-            print(e)
-            return None
-        except NetworkException as e:
-            print(e)
-            return None
-        except ApiException as e:
-            print(e)
-            return None
-        except TimeoutException as e:
-            print(e)
-            return None
-
     async def solve(self, path):
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            try:
-                return await loop.run_in_executor(pool, lambda: self.solve_internal(path))
-            except ValidationException as e:
-                print(e)
-                return None
-            except NetworkException as e:
-                print(e)
-                return None
-            except ApiException as e:
-                print(e)
-                return None
-            except TimeoutException as e:
-                print(e)
-                return None
+            return await loop.run_in_executor(pool, lambda: self.solver.normal(path, numeric=1, minLength=5, maxLength=5))
 
     def report(self, captcha_id, result):
         try:

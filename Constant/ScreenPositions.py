@@ -49,3 +49,6 @@ captcha_refresh = (1245, 388)
 captcha_data_bbox = (993, 255, 260, 80)
 
 jewel_slots = [(25 + 39 * (i%5), 141 + 39 * (i//5)) for i in range(30)]
+
+bbox_main_ui = (1013, 562, 230, 140)
+btn_claim_playtime_rune = (1230, 253)

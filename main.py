@@ -5,7 +5,7 @@ from Constant.Constants import *
 from Controller import SC2Window
 
 if __name__ == '__main__':
-    config = RunConfiguration(Inferno, rune_gain_behaviour=0, rune_reinforce_slot_index=0)
+    config = RunConfiguration(Holic, rune_gain_behaviour=0, rune_reinforce_slot_index=0)
     controller = BotController(SC2Window.SC2Window(), config)
     # controller.test_func()
     loop = asyncio.new_event_loop()

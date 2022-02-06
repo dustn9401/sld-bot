@@ -14,7 +14,7 @@ class Randomizer:
         self.next_upgrade_interval = 0
         self.refresh_random_values()
         self.next_merge_interval = 0
-        self.stop_lottery_time = random.randint(1500, 2500)
+        self.stop_lottery_time = random.randint(1800, 2500)
         self.merge_start_time = random.randint(800, 1500)
         self.upgrade_start_time = random.randint(200, 300) if self.bool_seed else random.randint(300, 400)
         self.lottery8_start_time = Constants.Lottery8StartTime + (random.randint(0, 10) if self.bool_seed else random.randint(11, 20))
@@ -24,7 +24,7 @@ class Randomizer:
         self.apm_noise_times = [random.randint(100, 3000) for i in range(random.randint(3, 10))]
         self.apm_noise_times = sorted(self.apm_noise_times)
         self.exit_after_110r = random.randint(0, 2) <= 1
-        self.exit_after_90r = random.randint(0, 4) == 0
+        self.exit_after_90r = random.randint(0, 4) == 4
         print(f'randomizer: 90r={self.exit_after_90r}, 110r={self.exit_after_110r}')
 
     def on_merge(self):

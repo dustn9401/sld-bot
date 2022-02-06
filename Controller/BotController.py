@@ -223,7 +223,6 @@ class BotController:
         await self.handle_captcha(session_data, randomizer)
         await self.handle_jewel_box(session_data)
         await self.handle_apm_noise(session_data, randomizer)
-        await self.handle_check_playtime_rune(session_data)
 
     async def handle_apm_noise(self, session_data, randomizer):
         elapsed = session_data.stopwatch.get_elapsed()
@@ -279,6 +278,7 @@ class BotController:
         print(f'paused: {session_data.stopwatch.get_elapsed()}')
         while image_search(self.screen, self.img_pausePopup) is not None:
             await asyncio.sleep(1)
+        print('resume')
         session_data.stopwatch.resume()
 
     async def handle_merge_units(self, session_data, randomizer):
@@ -290,7 +290,6 @@ class BotController:
         if elapsed > randomizer.stop_lottery_time: return
         if self.is_locked_by_debuff(): return
 
-        print(f'merge units: {elapsed}')
         session_data.on_merge()
         randomizer.on_merge()
 
@@ -474,12 +473,10 @@ class BotController:
         session_data.on_claim_rune()
         await send_click_async(pos.btn_start_roulette, delay=8)
         await send_click_async(pos.btn_claim_rune, delay=0.5)
+        await self.handle_rune_result_if_possible(session_data)
+        await self.handle_check_playtime_rune(session_data)
 
     async def handle_check_playtime_rune(self, session_data: SessionData):
-        elapsed = session_data.stopwatch.get_elapsed()
-        if elapsed < 120: return
-        if elapsed - session_data.last_playtime_rune_check < 60: return
-        session_data.last_playtime_rune_check = elapsed
         await send_click_async(pos.btn_claim_playtime_rune, delay=0.5)
         await self.handle_rune_result_if_possible(session_data)
 
